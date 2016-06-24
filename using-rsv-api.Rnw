@@ -1,0 +1,104 @@
+\documentclass[a4paper]{article}
+
+\usepackage{listings}
+\usepackage{inconsolata}
+
+\usepackage[dvipsnames]{xcolor}
+
+\usepackage[left=2.5cm,top=3cm,right=2.5cm,bottom=3cm,bindingoffset=0cm]{geometry}
+
+\lstset{ %
+  language=R,                     % the language of the code
+  breakatwhitespace=false,        % sets if automatic breaks should only happen at whitespace
+  keywordstyle=\color{NavyBlue},      % keyword style
+  stringstyle=\color{JungleGreen},      % string literal style
+  morekeywords={get_pxweb_data, TRUE}            % if you want to add more keywords to the set
+} 
+
+
+\title{Using the Icelandic Centre for Retail Studies PX-Web API}
+\author{Palmar Thorsteinsson}
+
+\begin{document}
+
+\maketitle
+
+<<echo=FALSE>>=
+# Just for tidying display of code
+  options(width=80)
+
+  listing <- function(x, options) {
+    paste("\\begin{lstlisting}[basicstyle=\\ttfamily,breaklines=true]\n",
+      x, "\\end{lstlisting}\n", sep = "")
+  }
+  knit_hooks$set(source=listing, output=listing)
+@
+
+\section{Loading the PX-Web library}
+Let's begin by loading the \texttt{pxweb} library that we will use for interacting with
+the API. This ofcourse assumes that the library has been installed already.
+
+<<main, echo=TRUE>>=
+library(pxweb)
+@
+
+\section{Downloading individual series}
+Next we download some data. Let's get the indices for sale of alcohol in fixed prices in 2015.
+
+<<get_data, echo=TRUE>>=
+url <- "http://px.rsv.is/PXWeb/api/v1/en/Sm%C3%A1s%C3%B6luv%C3%ADsitalan/Retail_turnover.px"
+
+get_pxweb_data(url = url,
+   dims = list(Year = c('14'),
+               Month = c('*'),
+               Prices = c('1'),
+               Category = c('1'),
+               "Indices and changes" = c('0')),
+   clean = TRUE)
+@
+
+\newpage
+
+\section{Downloading multiple series}
+Finally we make a chart for each index. Let's begin by downloading the data.
+
+
+<<get_indices_1, echo=TRUE>>=
+url <- "http://px.rsv.is/PXWeb/api/v1/en/Sm%C3%A1s%C3%B6luv%C3%ADsitalan/Retail_turnover.px"
+data <- get_pxweb_data(url = url,
+               dims = list(Year = c('*'),
+                           Month = c('*'),
+                           Prices = c('1'),
+                           Category = c('*'),
+                           "Indices and changes" = c('0')),
+               clean = TRUE)
+@
+
+\subsection{Creating proper timestamps}
+In order to display the time series properly we must create a column in the data
+set with a date value.
+
+<<get_indices_2, echo=TRUE, warning=FALSE>>=
+months <- data.frame(
+  num = 1:12,
+  name = month.name)
+data <- merge(x=data, y=months, by.x="Month", by.y="name")
+data$period <- as.Date(paste0(data$Year, "-", data$num, "-01"))
+@
+
+\subsection{Plotting the data}
+Let's take a peek at the data before plotting.
+<<get_indices_3, echo=TRUE, warning=FALSE>>=
+head(data[,c(8,4,5,6)], n=10)
+@
+
+And finally plot all the series at once.
+
+<<get_indices_4, echo=TRUE, warning=FALSE>>=
+library(ggplot2)
+ggplot(data, aes(x=period, y=values)) + 
+  geom_line() + facet_wrap(~ Category, scales="free", ncol=2)
+@
+
+
+\end{document}
